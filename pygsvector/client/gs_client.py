@@ -23,11 +23,9 @@ from sqlalchemy.exc import NoSuchTableError
 from .index_param import IndexParams
 from .partitions import GsPartition
 from ..schema import (
-    GsDBTable,
     l2_distance,
     cosine_distance,
-    inner_product,
-    negative_inner_product,
+    hamming_bool_distance,
     ReplaceStmt,
 )
 from ..util import GsDBVersion
@@ -47,18 +45,17 @@ class GsClient:
         db_name: str = "gaussdb",
         **kwargs,
     ):
-        registry.register("postgresql.gaussdb", "pygsvector", "GaussDBDialect")
+        registry.register("gaussdb.psycopg2", "pygsvector", "GaussDBDialect")
 
         setattr(func_mod, "l2_distance", l2_distance)
         setattr(func_mod, "cosine_distance", cosine_distance)
-        setattr(func_mod, "inner_product", inner_product)
-        setattr(func_mod, "negative_inner_product", negative_inner_product)
+        setattr(func_mod, "hamming_bool_distance", hamming_bool_distance)
 
         user = quote(user, safe="")
         password = quote(password, safe="")
 
         connection_str = (
-            f"postgresql+gaussdb://{user}:{password}@{uri}/{db_name}?client_encoding=utf8"
+            f"gaussdb+psycopg2://{user}:{password}@{uri}/{db_name}?client_encoding=utf8"
         )
         self.engine = create_engine(connection_str, **kwargs)
         self.metadata_obj = MetaData()
@@ -135,7 +132,7 @@ class GsClient:
                     partition_kwargs["postgresql_partition_by"] = partitions.do_compile()
 
                 if indexes is not None:
-                    table = GsDBTable(
+                    table = Table(
                         table_name,
                         self.metadata_obj,
                         *columns,
@@ -144,7 +141,7 @@ class GsClient:
                         **partition_kwargs,
                     )
                 else:
-                    table = GsDBTable(
+                    table = Table(
                         table_name,
                         self.metadata_obj,
                         *columns,

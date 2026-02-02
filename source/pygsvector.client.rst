@@ -28,7 +28,7 @@ index_param module
 milvus_like_client module
 -------------------------
 
-.. automodule:: pygsvector.client.milvus_like_client
+.. automodule:: pygsvector.client.milvus_compat_client
    :members:
    :undoc-members:
    :show-inheritance:

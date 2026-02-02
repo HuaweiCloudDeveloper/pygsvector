@@ -1,5 +1,5 @@
 import unittest
-from pygsvector.client import GsVecClient, VecIndexType, IndexParam
+from pygsvector.client import GsVecClient, IndexType, VecIndexParam
 from pygsvector.schema import FLOATVECTOR, VectorIndex
 from sqlalchemy import Column, Integer, Table
 from sqlalchemy.sql import func

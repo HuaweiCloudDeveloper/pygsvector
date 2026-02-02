@@ -1,7 +1,7 @@
 import unittest
 from pygsvector import *
 from sqlalchemy import Column, Integer, text
-from sqlalchemy.dialects.mysql import TEXT
+from sqlalchemy.dialects.postgresql import TEXT
 import logging
 
 logger = logging.getLogger(__name__)
@@ -29,7 +29,7 @@ class GsFtsIndexTest(unittest.TestCase):
         )
         fts_index_param = BM25IndexParam(
             index_name="fts_idx4",
-            field_names=["doc"],
+            field_name="doc",
         )
         self.client.create_bm25_idx_with_bm25_index_param(
             test_collection_name,
@@ -44,15 +44,15 @@ class GsFtsIndexTest(unittest.TestCase):
         ]
         fts_index_param = BM25IndexParam(
             index_name="fts_idx2",
-            field_names=["doc"],
+            field_name="doc",
         )
         self.client.create_table_with_index_params(
             table_name=test_collection_name,
             columns=cols,
-            bm25_idxs=[fts_index_param],
+            index_params=[fts_index_param],
         )
 
-    def test_fts_insert_and_search(self):
+    def test_bm25_insert_and_search(self):
         test_collection_name = "fts_data_test"
         self.client.drop_table_if_exist(test_collection_name)
 
@@ -62,13 +62,13 @@ class GsFtsIndexTest(unittest.TestCase):
         ]
         fts_index_param = BM25IndexParam(
             index_name="fts_idx3",
-            field_names=["doc"],
+            field_name="doc",
             num_parallels="16",
         )
         self.client.create_table_with_index_params(
             table_name=test_collection_name,
             columns=cols,
-            bm25_idxs=[fts_index_param],
+            index_params=[fts_index_param],
         )
 
 

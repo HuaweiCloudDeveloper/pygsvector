@@ -5,8 +5,7 @@
 * GsDBVersion cluster version class
 """
 from .vector import Vector
-from .sparse_vector import SparseVector
 from .gs_version import GsDBVersion
 from .dls_to_sql import DSLToSQLConverter
 
-__all__ = ["Vector", "SparseVector", "GsDBVersion", "DSLToSQLConverter"]
+__all__ = ["Vector", "GsDBVersion", "DSLToSQLConverter"]

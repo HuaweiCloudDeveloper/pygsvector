@@ -67,8 +67,8 @@ def compile_cosine_distance(element, compiler, **kwargs): # pylint: disable=unus
     return f"cosine_distance({parse_vec_distance_func_args(element, compiler, **kwargs)})"
 
 
-class inner_product(FunctionElement):
-    """Vector distance function: inner_product.
+class hamming_bool_distance(FunctionElement):
+    """Vector distance function: hamming_bool_distance.
     
     Attributes:
     type : result type
@@ -79,34 +79,12 @@ class inner_product(FunctionElement):
         super().__init__()
         self.args = args
 
-@compiles(inner_product)
-def compile_inner_product(element, compiler, **kwargs): # pylint: disable=unused-argument
-    """Compile inner_product function.
+@compiles(hamming_bool_distance)
+def compile_hamming_distance(element, compiler, **kwargs): # pylint: disable=unused-argument
+    """Compile hamming_bool_distance function.
 
     Args:
-        element: inner_product arguments
+        element: hamming_bool_distance arguments
         compiler: SQL compiler
     """
-    return f"inner_product({parse_vec_distance_func_args(element, compiler, **kwargs)})"
-
-class negative_inner_product(FunctionElement):
-    """Vector distance function: negative_inner_product.
-    
-    Attributes:
-    type : result type
-    """
-    type = Float()
-
-    def __init__(self, *args):
-        super().__init__()
-        self.args = args
-
-@compiles(negative_inner_product)
-def compile_negative_inner_product(element, compiler, **kwargs): # pylint: disable=unused-argument
-    """Compile negative_inner_product function.
-
-    Args:
-        element: negative_inner_product arguments
-        compiler: SQL compiler
-    """
-    return f"negative_inner_product({parse_vec_distance_func_args(element, compiler, **kwargs)})"
+    return f"hamming_bool_distance({parse_vec_distance_func_args(element, compiler, **kwargs)})"

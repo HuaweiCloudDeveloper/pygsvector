@@ -3,10 +3,13 @@ from sqlalchemy import util
 from sqlalchemy.dialects.postgresql import psycopg2 as pg_psycopg2
 from sqlalchemy.dialects.postgresql import asyncpg as pg_asyncpg
 import re
+from sqlalchemy.util.concurrency import await_only
+import asyncpg,logging
 
 from .floatvector import FLOATVECTOR
 from sqlalchemy.dialects.postgresql.base import PGCompiler
 from sqlalchemy import exc
+logger = logging.getLogger(__name__)
 
 class GaussDBCompiler(PGCompiler):
     def format_from_hint_text(self, sqltext, table, hint, iscrud):
@@ -66,12 +69,12 @@ class AsyncGaussDBDialect(pg_asyncpg.PGDialect_asyncpg):
         super().__init__(**kwargs)
         self.ischema_names["floatvector"] = FLOATVECTOR
 
-    async def _load_domains(self, connection, schema=None, **kw):
+    def _load_domains(self, connection, schema=None, **kw):
         return []
 
-    async def _load_enums(self, connection, schema=None, **kw):
+    def _load_enums(self, connection, schema=None, **kw):
         return []
-    async def _get_server_version_info(self, connection):
+    def _get_server_version_info(self, connection):
         v = connection.exec_driver_sql("select pg_catalog.version()").scalar()
         m = re.match(
             r".*(?:PostgreSQL|EnterpriseDB) "

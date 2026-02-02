@@ -15,7 +15,6 @@ extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.autosummary',
     'sphinx.ext.napoleon',
-    'sphinx.ext.viewcode',  # 添加源码链接
     'sphinx.ext.intersphinx',
 ]
 
@@ -25,6 +24,7 @@ autodoc_default_options = {
     'undoc-members': True,
     'show-inheritance': True,
 }
+html_copy_source = False
 
 # templates_path = ['_templates']
 exclude_patterns = []

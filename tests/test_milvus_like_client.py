@@ -8,11 +8,11 @@ logger = logging.getLogger(__name__)
 
 class GsMilkClientTest(unittest.TestCase):
     def setUp(self) -> None:
-        self.client = MilvusLikeClient(uri="10.25.106.118:36801",
-                                       user="test",
-                                       password="Gauss_234",
-                                       db_name="testdb",
-                                       )
+        self.client = MilvusCompatClient(uri="10.25.106.118:36801",
+                                         user="test",
+                                         password="Gauss_234",
+                                         db_name="testdb",
+                                         )
 
     def test_create_collection_default(self):
         self.client.drop_collection("items1")
@@ -127,7 +127,6 @@ class GsMilkClientTest(unittest.TestCase):
             index_type="GSDISKANN",
             index_name="vidx_title_vector1",
             metric_type="L2",
-            local_index=True,
         )
 
         self.client.create_collection(
@@ -166,7 +165,6 @@ class GsMilkClientTest(unittest.TestCase):
             index_type="GSDISKANN",
             index_name="vidx_title_vector2",
             metric_type="L2",
-            local_index=True,
         )
         self.client.create_index(
             collection_name=test_collection_name,
@@ -196,7 +194,6 @@ class GsMilkClientTest(unittest.TestCase):
             index_type="GsDiskANN",
             index_name="vidx1",
             metric_type="L2",
-            local_index=True,
         )
 
         self.client.create_collection(
@@ -249,7 +246,6 @@ class GsMilkClientTest(unittest.TestCase):
             index_type="GSDISKANN",
             index_name="vidx2",
             metric_type="L2",
-            local_index=True,
         )
 
         self.client.create_collection(
@@ -279,7 +275,7 @@ class GsMilkClientTest(unittest.TestCase):
             collection_name=test_collection_name, ids=[12, 112], partition_name="p0"
         )
         # delete with where clause
-        table = self.client.load_table(collection_name=test_collection_name)
+        table = self.client.load_collection(collection_name=test_collection_name)
         # For example: where tag % 2 = 0
         where_clause = [table.c["tag"] % 2 == 0]
         self.client.delete(collection_name=test_collection_name, filter=where_clause)
@@ -312,7 +308,6 @@ class GsMilkClientTest(unittest.TestCase):
             index_type="GSDISKANN",
             index_name="vidx3",
             metric_type="L2",
-            local_index=True,
         )
 
         self.client.create_collection(
@@ -338,7 +333,7 @@ class GsMilkClientTest(unittest.TestCase):
         )
         self.assertEqual(set([r['id'] for r in res]), set([112, 190, 12, 90]))
 
-        table = self.client.load_table(collection_name=test_collection_name)
+        table = self.client.load_collection(collection_name=test_collection_name)
         where_clause = [table.c["id"] < 100]
         res = self.client.query(
             collection_name=test_collection_name,
@@ -390,10 +385,9 @@ class GsMilkClientTest(unittest.TestCase):
         idx_params = self.client.prepare_index_params()
         idx_params.add_index(
             field_name="embedding",
-            index_type=VecIndexType.GSDISKANN,
+            index_type=IndexType.GSDISKANN,
             index_name="vidx4",
             metric_type="L2",
-            local_index=True,
         )
 
         self.client.create_collection(
@@ -443,7 +437,7 @@ class GsMilkClientTest(unittest.TestCase):
         idx_params = self.client.prepare_index_params()
         idx_params.add_index(
             field_name="embedding",
-            index_type=VecIndexType.GSDISKANN,
+            index_type=IndexType.GSDISKANN,
             index_name="vidx6",
             metric_type="cosine",
         )
@@ -490,10 +484,9 @@ class GsMilkClientTest(unittest.TestCase):
         idx_params = self.client.prepare_index_params()
         idx_params.add_index(
             field_name="embedding",
-            index_type=VecIndexType.GSIVFFLAT,
+            index_type=IndexType.GSIVFFLAT,
             index_name="vidx7",
             metric_type="L2",
-            local_index=True,
         )
 
         self.client.create_collection(
@@ -534,10 +527,9 @@ class GsMilkClientTest(unittest.TestCase):
         idx_params = self.client.prepare_index_params()
         idx_params.add_index(
             field_name="embedding",
-            index_type=VecIndexType.GSDISKANN,
+            index_type=IndexType.GSDISKANN,
             index_name="vidx8",
             metric_type="L2",
-            local_index=True,
         )
 
         self.client.create_collection(
@@ -558,7 +550,7 @@ class GsMilkClientTest(unittest.TestCase):
         ]
         self.client.insert(collection_name=test_collection_name, data=data)
 
-        table = self.client.load_table(collection_name=test_collection_name)
+        table = self.client.load_collection(collection_name=test_collection_name)
         where_clause = [table.c["id"] < 80]
         res = self.client.query(
             collection_name=test_collection_name,
@@ -603,10 +595,9 @@ class GsMilkClientTest(unittest.TestCase):
         idx_params = self.client.prepare_index_params()
         idx_params.add_index(
             field_name="embedding",
-            index_type=VecIndexType.GSDISKANN,
+            index_type=IndexType.GSDISKANN,
             index_name="vidx9",
             metric_type="L2",
-            local_index=True,
         )
 
         self.client.create_collection(
@@ -648,7 +639,7 @@ class GsMilkClientTest(unittest.TestCase):
     #     idx_params = self.client.prepare_index_params()
     #     idx_params.add_index(
     #         field_name="embedding",
-    #         index_type=VecIndexType.GSDISKANN,
+    #         index_type=IndexType.GSDISKANN,
     #         index_name="vidx10",
     #         metric_type="L2",
     #     )
@@ -683,10 +674,9 @@ class GsMilkClientTest(unittest.TestCase):
         idx_params = self.client.prepare_index_params()
         idx_params.add_index(
             field_name="embedding",
-            index_type=VecIndexType.GSDISKANN,
+            index_type=IndexType.GSDISKANN,
             index_name="vidx111",
             metric_type="L2",
-            local_index=True,
             params={"pq_nclus": 16, "num_parallels": 50, "enable_pq": True},
         )
 
