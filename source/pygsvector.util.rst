@@ -12,13 +12,6 @@ gs_version module
    :undoc-members:
    :show-inheritance:
 
-sparse_vector module
---------------------
-
-.. automodule:: pygsvector.util.sparse_vector
-   :members:
-   :undoc-members:
-   :show-inheritance:
 
 vector module
 -------------

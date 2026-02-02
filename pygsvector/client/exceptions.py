@@ -1,9 +1,9 @@
-"""Exception for MilvusLikeClient."""
+"""Exception for MilvusCompatClient."""
 from .enum import IntEnum
 
 
 class ErrorCode(IntEnum):
-    """Error codes for MilvusLikeClient."""
+    """Error codes for MilvusCompatClient."""
     SUCCESS = 0
     UNEXPECTED_ERROR = 1
     INVALID_ARGUMENT = 2
@@ -13,7 +13,7 @@ class ErrorCode(IntEnum):
 
 
 class GsException(Exception):
-    """Base class for MilvusLikeClient exception."""
+    """Base class for MilvusCompatClient exception."""
 
     def __init__(
         self,
@@ -109,7 +109,7 @@ class ExceptionsMessage:
     )
     CollectionNotExists = "Collection does not exist."
     MetricTypeParamTypeInvalid = "MetricType param type should be string."
-    MetricTypeValueInvalid = "MetricType should be 'l2'/'ip'/'cosine' in ann search."
+    MetricTypeValueInvalid = "MetricType should be 'l2'/'hamming'/'cosine' in ann search."
     UsingInIDsWhenMultiPrimaryKey = "Using 'ids' when table has multi primary key."
     ClusterVersionIsLow = (
         "GaussDB %s feature is not supported because cluster version is below %s."

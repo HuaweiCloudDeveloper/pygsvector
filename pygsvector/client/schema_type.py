@@ -7,10 +7,13 @@ from sqlalchemy import (
     String,
     Float,
     JSON,
+    Double,
+    ARRAY
 )
-from sqlalchemy.dialects.mysql import LONGTEXT
+from sqlalchemy.dialects.postgresql import TEXT
+
 from .enum import IntEnum
-from ..schema import SPARSE_VECTOR, FLOATVECTOR
+from ..schema import FLOATVECTOR
 
 
 class DataType(IntEnum):
@@ -30,11 +33,8 @@ class DataType(IntEnum):
     ARRAY = 22
     JSON = 23
 
-    # BINARY_VECTOR = 100
     FLOAT_VECTOR = 101
-    # FLOAT16_VECTOR = 102
-    # BFLOAT16_VECTOR = 103
-    SPARSE_FLOAT_VECTOR = 104
+    BOOL_VECTOR = 102
 
 
 def convert_datatype_to_sqltype(datatype: DataType):
@@ -56,7 +56,7 @@ def convert_datatype_to_sqltype(datatype: DataType):
     if datatype == DataType.DOUBLE:
         return Double
     if datatype == DataType.STRING:
-        return LONGTEXT
+        return TEXT
     if datatype == DataType.VARCHAR:
         return String
     if datatype == DataType.ARRAY:
@@ -65,6 +65,4 @@ def convert_datatype_to_sqltype(datatype: DataType):
         return JSON
     if datatype == DataType.FLOAT_VECTOR:
         return FLOATVECTOR
-    if datatype == DataType.SPARSE_FLOAT_VECTOR:
-        return SPARSE_VECTOR
     raise ValueError(f"Invalid DataType: {datatype}")

@@ -28,7 +28,7 @@ make html
 
 `pygsvector` supports two modes:
 
-- `Milvus compatible mode`: You can use the `MilvusLikeClient` class to use vector storage in a way similar to the Milvus API
+- `Milvus compatible mode`: You can use the `MilvusCompatClient` class to use vector storage in a way similar to the Milvus API
 - `SQLAlchemy hybrid mode`: You can use the vector storage function provided by the `GsVecClient` class and execute the relational database statement with the SQLAlchemy library. In this mode, you can regard `pygsvector` as an extension of SQLAlchemy.
 
 ### Milvus compatible mode
@@ -42,7 +42,7 @@ A simple workflow to perform ANN search with GaussDB Vector Store:
 ```python
 from pygsvector import *
 
-client = MilvusLikeClient(uri="127.0.0.1:2881", user="test@test")
+client = MilvusCompatClient(uri="127.0.0.1:2881", user="test@test")
 ```
 
 - create a collection with vector index:
@@ -63,7 +63,7 @@ schema.add_field(field_name="meta", datatype=DataType.JSON, nullable=True)
 idx_params = client.prepare_index_params()
 idx_params.add_index(
     field_name='embedding',
-    index_type=VecIndexType.GSDISKANN,
+    index_type=IndexType.GSDISKANN,
     index_name='vidx',
     local_index=True,
     metric_type="L2",
@@ -117,27 +117,27 @@ client = GsVecClient(uri="127.0.0.1:2881", user="test@test")
 ```python
 # create partitioned table
 range_part = GsRangePartition(False, range_part_infos=[
-    RangeListPartInfo('p0', 100),
-    RangeListPartInfo('p1', 'maxvalue'),
+  RangeListPartInfo('p0', 100),
+  RangeListPartInfo('p1', 'maxvalue'),
 ], range_expr='id')
 test_collection_name = "ann_search_test"
 cols = [
-    Column('id', Integer, primary_key=True, autoincrement=False),
-    Column('embedding', FLOATVECTOR(3)),
-    Column('meta', JSON)
+  Column('id', Integer, primary_key=True, autoincrement=False),
+  Column('embedding', FLOATVECTOR(3)),
+  Column('meta', JSON)
 ]
 client.create_table(test_collection_name, columns=cols, partitions=range_part)
 
 # create vector index
 client.create_index(
-    test_collection_name,
-    is_vec_index=True,
-    index_name="vidx13",
-    column_names=["embedding"],
-    index_type="GSDISKANN",
-    metric_type="l2",
-    local_index=True,
-    vidx_params="enable_pq=false",
+  test_collection_name,
+  is_vec_index=True,
+  index_name="vidx13",
+  column_names=["embedding"],
+  index_type="GSDISKANN",
+  metric_type="l2",
+  local_index=True,
+  idx_params="enable_pq=false",
 )
 ```
 

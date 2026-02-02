@@ -3,3 +3,4 @@ tests/.env
 __pycache__/
 build/
 .idea/
+.codemate

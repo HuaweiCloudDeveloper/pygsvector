@@ -2,31 +2,22 @@
 
 import logging
 from typing import List, Optional, Union
+
 import numpy as np
-from sqlalchemy import (
-    Table,
-    Column,
-    Index,
-    select,
-    text,
-)
+from sqlalchemy import Table, Column, Index, select, text, ColumnElement
+
 from .exceptions import ClusterVersionException, ErrorCode, ExceptionsMessage
-from .bm25_index_param import BM25IndexParam
-from .index_param import IndexParams, IndexParam
-from .gs_client import GsClient
+from .gs_client import GsClient as Client
+from .index_param import IndexParams, VecIndexParam, BM25IndexParam, IndexType
 from .partitions import GsPartition
+from ..schema import VectorIndex, BM25Index
 from ..util import GsDBVersion
-from ..schema import (
-    GsDBTable,
-    VectorIndex,
-    BM25Index,
-)
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
 
-class GsVecClient(GsClient):
+class GsVecClient(Client):
     """The GaussDB Vector Client"""
 
     def __init__(
@@ -50,8 +41,7 @@ class GsVecClient(GsClient):
             table_name: str,
             columns: List[Column],
             indexes: Optional[List[Index]] = None,
-            vidxs: Optional[IndexParams] = None,
-            bm25_idxs: Optional[List[BM25IndexParam]] = None,
+            index_params: Optional[IndexParams] = None,
             partitions: Optional[GsPartition] = None,
     ):
         """Create table with optional index_params.
@@ -60,139 +50,144 @@ class GsVecClient(GsClient):
             table_name (string): table name
             columns (List[Column]): column schema
             indexes (Optional[List[Index]]): optional common index schema
-            vidxs (Optional[IndexParams]): optional vector index schema
-            bm25_idxs (Optional[List[FtsIndexParam]]): optional BM25 search index schema
+            index_params (Optional[IndexParams]): optional vector and BM25 searchindex schema
             partitions (Optional[ObPartition]): optional partition strategy
         """
         with self.engine.connect() as conn:
             with conn.begin():
                 # do partition
                 partition_kwargs = {}
+                local_index = False
                 if partitions is not None:
                     partition_kwargs["postgresql_partition_by"] = partitions.do_compile()
+                    local_index = True
 
                 # create table with common index
                 if indexes is not None:
-                    table = GsDBTable(
-                        table_name,
-                        self.metadata_obj,
-                        *columns,
-                        *indexes,
-                        extend_existing=True,
-                    )
+                    table = Table(table_name, self.metadata_obj, *columns, *indexes, extend_existing=True,
+                                  **partition_kwargs,
+                                  )
                 else:
-                    table = GsDBTable(
-                        table_name,
-                        self.metadata_obj,
-                        *columns,
-                        extend_existing=True,
-                        **partition_kwargs,
-                    )
+                    table = Table(table_name, self.metadata_obj, *columns, extend_existing=True, **partition_kwargs,
+                                  )
 
                 table.create(self.engine, checkfirst=True)
 
-                # create vector indexes
-                if vidxs is not None:
-                    for vidx in vidxs:
-                        vidx = VectorIndex(
-                            vidx.index_name,
-                            table.c[vidx.field_name],
-                            index_type=vidx.index_type,
-                            metric_type=vidx.metric_type,
-                            local_index=vidx.local_index,
-                            params=vidx.param_str(),
-                        )
-                        vidx.create(self.engine, checkfirst=True)
-                # create fts indexes
-                if bm25_idxs is not None:
-                    for bm25_idx in bm25_idxs:
-                        idx_cols = [table.c[field_name] for field_name in bm25_idx.field_names]
-                        bm25_idx = BM25Index(
-                            bm25_idx.index_name,
-                            bm25_idx.param_str(),
-                            *idx_cols,
-                        )
-                        bm25_idx.create(self.engine, checkfirst=True)
+                if index_params is not None:
+                    for idx in index_params:
+                        if isinstance(idx, VecIndexParam):
+                            # create vector indexes
+                            idx = VectorIndex(idx.index_name, table.c[idx.field_name],
+                                              index_type=idx.index_type, metric_type=idx.metric_type,
+                                              local_index=local_index, params=idx.param_str(),
+                                              )
+                        elif isinstance(idx, BM25IndexParam):
+                            # create fts indexes
+                            idx = BM25Index(idx.index_name, table.c[idx.field_name],
+                                            local_index=local_index, params=idx.param_str(),
+                                            )
+                        idx.create(self.engine, checkfirst=True)
+
+    def __is_partitioned_table(self, table_name: str, schema: str = "public") -> bool:
+        """
+        Check if a GaussDB table is a partitioned table (relkind = 'p').
+        """
+        query = text("""
+            SELECT EXISTS (
+                SELECT 1
+                FROM pg_partition p
+                JOIN pg_class c ON p.parentid = c.oid
+                JOIN pg_namespace n ON c.relnamespace = n.oid
+                WHERE c.relname = :table_name
+                  AND n.nspname = :schema
+                  AND p.parttype = 'p'  -- 'p' means partitioned table (parent)
+            );
+        """)
+        with self.engine.connect() as conn:
+            return conn.execute(query, {"table_name": table_name, "schema": schema}).scalar()
 
     def create_index(
             self,
             table_name: str,
-            is_vec_index: bool,
             index_name: str,
             column_names: List[str],
             index_type: str,
             metric_type: str,
-            local_index: bool,
-            vidx_params: Optional[str] = None,
+            idx_params: Optional[str] = None,
             **kw,
     ):
         """Create common index or vector index.
 
         Args:
-            local_index: True
             metric_type:  l2 or cosine
             index_type: GsDiskANN or GsIVFFLAT
             table_name (string): table name
-            is_vec_index (bool): common index or vector index
             index_name (string): index name
             column_names (List[string]): create index on which columns
-            vidx_params (Optional[str]): vector index params, for example 'distance=l2, type=hnsw, lib=vsag'
+            idx_params (Optional[str]): vector index params, for example 'distance=l2, type=hnsw, lib=vsag'
             **kw: additional keyword arguments
         """
         table = Table(table_name, self.metadata_obj, autoload_with=self.engine)
         columns = [table.c[column_name] for column_name in column_names]
+
+        # 判断是否为分区表
+        local_index = self.__is_partitioned_table(table.name, schema=table.schema or "public")
+
         with self.engine.connect() as conn:
             with conn.begin():
-                if is_vec_index:
-                    vidx = VectorIndex(index_name, *columns, index_type=index_type, metric_type=metric_type,
-                                       local_index=local_index, params=vidx_params, **kw)
-                    vidx.create(self.engine, checkfirst=True)
+                if index_type == IndexType.BM25:
+                    idx = BM25Index(index_name, *columns, local_index=local_index, params=idx_params, **kw)
+                elif index_type == IndexType.GSDISKANN or IndexType.GSIVFFLAT:
+                    idx = VectorIndex(index_name, *columns, index_type=index_type, metric_type=metric_type,
+                                      local_index=local_index, params=idx_params, **kw)
                 else:
                     idx = Index(index_name, *columns, **kw)
-                    idx.create(self.engine, checkfirst=True)
+
+                idx.create(self.engine, checkfirst=True)
 
     def create_vidx_with_vec_index_param(
             self,
             table_name: str,
-            vidx_param: IndexParam,
+            vidx_param: VecIndexParam,
     ):
         """Create vector index with vector index parameter.
 
         Args:
             table_name (string): table name
-            vidx_param (IndexParam): vector index parameter
+            vidx_param (VecIndexParam): vector index parameter
         """
         table = Table(table_name, self.metadata_obj, autoload_with=self.engine)
+        local_index = self.__is_partitioned_table(table.name, schema=table.schema or "public")
+
         with self.engine.connect() as conn:
             with conn.begin():
-                vidx = VectorIndex(
-                    vidx_param.index_name,
-                    table.c[vidx_param.field_name],
-                    params=vidx_param.param_str(),
-                )
-                vidx.create(self.engine, checkfirst=True)
+                idx = VectorIndex(vidx_param.index_name, table.c[vidx_param.field_name],
+                                  index_type=vidx_param.index_type, metric_type=vidx_param.metric_type,
+                                  local_index=local_index, params=vidx_param.param_str(),
+                                  )
+                idx.create(self.engine, checkfirst=True)
 
     def create_bm25_idx_with_bm25_index_param(
             self,
             table_name: str,
             bm25_idx_param: BM25IndexParam,
     ):
-        """Create fts index with fts index parameter.
+        """Create BM25 index with BM25 index parameter.
         
         Args:
             table_name (string) : table name
             bm25_idx_param (BM25IndexParam) : BM25 index parameter
         """
         table = Table(table_name, self.metadata_obj, autoload_with=self.engine)
+        local_index = self.__is_partitioned_table(table.name, schema=table.schema or "public")
+
         with self.engine.connect() as conn:
             with conn.begin():
-                idx_cols = [table.c[field_name] for field_name in bm25_idx_param.field_names]
-                fts_idx = BM25Index(
-                    bm25_idx_param.index_name,
-                    bm25_idx_param.param_str(),
-                    *idx_cols,
-                )
-                fts_idx.create(self.engine, checkfirst=True)
+                idx_cols = [table.c[bm25_idx_param.field_name]]
+                bm25_idx = BM25Index(bm25_idx_param.index_name, *idx_cols, local_index=local_index,
+                                    params=bm25_idx_param.param_str(),
+                                    )
+                bm25_idx.create(self.engine, checkfirst=True)
 
     def ann_search(
             self,
@@ -215,7 +210,7 @@ class GsVecClient(GsClient):
 
         Args:
             table_name (string): table name
-            vec_data (Union[list, dict]): the vector/sparse_vector data to search
+            vec_data (Union[list, dict]): the vector data to search
             vec_column_name (string): which vector field to search
             distance_func: function to calculate distance between vectors
             with_dist (bool): return result with distance
@@ -235,34 +230,28 @@ class GsVecClient(GsClient):
 
         table = Table(table_name, self.metadata_obj, autoload_with=self.engine)
 
-        columns = []
+        columns: List[ColumnElement] = []
+
+        # Handle output_columns
         if output_columns:
-            if isinstance(output_columns, (list, tuple)):
-                columns = list(output_columns)
-            else:
-                columns = [output_columns]
+            columns = list(output_columns) if isinstance(output_columns, (list, tuple)) else [output_columns]
         elif output_column_names:
             columns = [table.c[column_name] for column_name in output_column_names]
         else:
             columns = [table.c[column.name] for column in table.columns]
 
+        # Add extra output columns if provided
         if extra_output_cols is not None:
             columns.extend(extra_output_cols)
 
+        # Construct distance expression based on vec_data type
+        dist_expr = distance_func(
+            table.c[vec_column_name],
+            "[" + ",".join([str(np.float32(v)) for v in vec_data]) + "]" if isinstance(vec_data, list) else f"{vec_data}"
+        )
+
         if with_dist:
-            if isinstance(vec_data, list):
-                columns.append(
-                    distance_func(
-                        table.c[vec_column_name],
-                        "[" + ",".join([str(np.float32(v)) for v in vec_data]) + "]",
-                    )
-                )
-            else:
-                columns.append(
-                    distance_func(
-                        table.c[vec_column_name], f"{vec_data}"
-                    )
-                )
+            columns.append(dist_expr.label("score"))
 
         stmt = select(*columns)
 
@@ -271,30 +260,11 @@ class GsVecClient(GsClient):
 
         # Add distance threshold filter in SQL WHERE clause
         if distance_threshold is not None:
-            if isinstance(vec_data, list):
-                dist_expr = distance_func(
-                    table.c[vec_column_name],
-                    "[" + ",".join([str(np.float32(v)) for v in vec_data]) + "]",
-                )
-            else:
-                dist_expr = distance_func(
-                    table.c[vec_column_name], f"{vec_data}"
-                )
             stmt = stmt.where(dist_expr <= distance_threshold)
 
-        if isinstance(vec_data, list):
-            stmt = stmt.order_by(
-                distance_func(
-                    table.c[vec_column_name],
-                    "[" + ",".join([str(np.float32(v)) for v in vec_data]) + "]",
-                )
-            )
-        else:
-            stmt = stmt.order_by(
-                distance_func(
-                    table.c[vec_column_name], f"{vec_data}"
-                )
-            )
+        order_by_expr = text("score") if with_dist else dist_expr
+        stmt = stmt.order_by(order_by_expr)
+
         stmt_str = (
                 str(stmt.compile(
                     dialect=self.engine.dialect,
@@ -305,14 +275,18 @@ class GsVecClient(GsClient):
         with self.engine.connect() as conn:
             with conn.begin():
                 if idx_name_hint is not None:
-                    idx = stmt_str.find("SELECT ")
-                    stmt_str = f"SELECT /*+ indexscan({table_name} {idx_name_hint}) */ " + stmt_str[idx + len("SELECT "):]
+                    select_idx = stmt_str.find("SELECT ")
+                    stmt_str = (
+                            f"SELECT /*+ indexscan({table_name} {idx_name_hint}) */ "
+                            + stmt_str[select_idx + len("SELECT "):]
+                    )
 
                 if partition_names is None:
                     return conn.execute(text(stmt_str))
-                stmt_str = self._insert_partition_hint_for_query_sql(
-                    stmt_str, f"PARTITION({', '.join(partition_names)})"
-                )
+
+                partition_hint = f"PARTITION({', '.join(partition_names)})"
+                stmt_str = self._insert_partition_hint_for_query_sql(stmt_str, partition_hint)
+
                 return conn.execute(text(stmt_str))
 
     def post_ann_search(
@@ -429,9 +403,6 @@ class GsVecClient(GsClient):
             idx_name_hint (Optional[str]): Index name for indexscan hint (e.g., 'st_information_st_email_bm25_index').
             score_threshold (Optional[float]): Only return results with BM25 score >= this value.
         """
-        from sqlalchemy import text, select, column
-        import re
-
         # Validate inputs
         if not isinstance(search_text, str):
             raise ValueError("'query_text' must be a string for BM25 search.")
@@ -439,13 +410,13 @@ class GsVecClient(GsClient):
         table = Table(table_name, self.metadata_obj, autoload_with=self.engine)
 
         # Build output columns
-        columns = []
+        columns: List[ColumnElement] = []
         if output_columns:
             columns = list(output_columns) if isinstance(output_columns, (list, tuple)) else [output_columns]
         elif output_column_names:
             columns = [table.c[col] for col in output_column_names]
         else:
-            columns = [table.c[col.name] for col in table.columns]
+            columns = [col for col in table.columns.values()]
 
         if extra_output_cols is not None:
             columns.extend(extra_output_cols)
@@ -455,7 +426,7 @@ class GsVecClient(GsClient):
         score_expr_str = f"{column_name} ### '{escaped_query}'"
 
         if with_score:
-            columns.append(text(f"({score_expr_str}) AS bm25_score"))
+            columns.append(text(score_expr_str).label("score"))
 
         stmt = select(*columns)
 

@@ -10,10 +10,11 @@ logger.setLevel(logging.DEBUG)
 
 
 class PartType(IntEnum):
-    """Partition type of table or collection for both GsVecClient and MilvusLikeClient"""
+    """Partition type of table or collection for both GsVecClient and MilvusCompatClient"""
     Range = 0
     Hash = 1
     List = 3
+
 
 class GsPartition:
     """Base class of all kind of Partition strategy
@@ -23,6 +24,7 @@ class GsPartition:
         sub_partition (GsPartition) : subpartition strategy
         is_sub (bool) : this partition strategy is a subpartition or not
     """
+
     def __init__(self, part_type: PartType):
         self.part_type = part_type
         self.sub_partition = None
@@ -80,12 +82,13 @@ class RangeListPartInfo:
 
 class GsRangePartition(GsPartition):
     """Range/RangeColumns partition strategy."""
+
     def __init__(
-        self,
-        is_range_columns: bool,
-        range_part_infos: List[RangeListPartInfo],
-        range_expr: Optional[str] = None,
-        col_name_list: Optional[List[str]] = None,
+            self,
+            is_range_columns: bool,
+            range_part_infos: List[RangeListPartInfo],
+            range_expr: Optional[str] = None,
+            col_name_list: Optional[List[str]] = None,
     ):
         super().__init__(PartType.RangeColumns if is_range_columns else PartType.Range)
         self.range_part_infos = range_part_infos
@@ -114,13 +117,13 @@ class GsRangePartition(GsPartition):
             if self.sub_partition is None:
                 return f"RANGE ({self.range_expr}) ({self._parse_range_part_list()})"
             return f"RANGE ({self.range_expr}) {self.sub_partition.do_compile()} " \
-                    f"({self._parse_range_part_list()})"
+                   f"({self._parse_range_part_list()})"
         assert self.col_name_list is not None
         if self.sub_partition is None:
             return f"RANGE COLUMNS ({','.join(self.col_name_list)}) " \
-                    f"({self._parse_range_part_list()})"
+                   f"({self._parse_range_part_list()})"
         return f"RANGE COLUMNS ({','.join(self.col_name_list)}) " \
-                f"{self.sub_partition.do_compile()} ({self._parse_range_part_list()})"
+               f"{self.sub_partition.do_compile()} ({self._parse_range_part_list()})"
 
     def _parse_range_part_list(self) -> str:
         range_partitions_complied = [
@@ -133,12 +136,13 @@ class GsRangePartition(GsPartition):
 
 class GsSubRangePartition(GsRangePartition):
     """Range/RangeColumns subpartition strategy."""
+
     def __init__(
-        self,
-        is_range_columns: bool,
-        range_part_infos: List[RangeListPartInfo],
-        range_expr: Optional[str] = None,
-        col_name_list: Optional[List[str]] = None,
+            self,
+            is_range_columns: bool,
+            range_part_infos: List[RangeListPartInfo],
+            range_expr: Optional[str] = None,
+            col_name_list: Optional[List[str]] = None,
     ):
         super().__init__(is_range_columns, range_part_infos, range_expr, col_name_list)
         self.is_sub = True
@@ -156,7 +160,7 @@ class GsSubRangePartition(GsRangePartition):
         assert self.col_name_list is not None
         assert self.sub_partition is None
         return f"RANGE COLUMNS ({','.join(self.col_name_list)}) SUBPARTITION TEMPLATE " \
-                f"({self._parse_range_part_list()})"
+               f"({self._parse_range_part_list()})"
 
     def _parse_range_part_list(self) -> str:
         range_partitions_complied = [
@@ -169,12 +173,13 @@ class GsSubRangePartition(GsRangePartition):
 
 class GsListPartition(GsPartition):
     """List/ListColumns partition strategy."""
+
     def __init__(
-        self,
-        is_list_columns: bool,
-        list_part_infos: List[RangeListPartInfo],
-        list_expr: Optional[str] = None,
-        col_name_list: Optional[List[str]] = None,
+            self,
+            is_list_columns: bool,
+            list_part_infos: List[RangeListPartInfo],
+            list_expr: Optional[str] = None,
+            col_name_list: Optional[List[str]] = None,
     ):
         super().__init__(PartType.ListColumns if is_list_columns else PartType.List)
         self.list_part_infos = list_part_infos
@@ -203,13 +208,13 @@ class GsListPartition(GsPartition):
             if self.sub_partition is None:
                 return f"LIST ({self.list_expr}) ({self._parse_list_part_list()})"
             return f"LIST ({self.list_expr}) {self.sub_partition.do_compile()} " \
-                    f"({self._parse_list_part_list()})"
+                   f"({self._parse_list_part_list()})"
         assert self.col_name_list is not None
         if self.sub_partition is None:
             return f"LIST COLUMNS ({','.join(self.col_name_list)}) " \
-                    f"({self._parse_list_part_list()})"
+                   f"({self._parse_list_part_list()})"
         return f"LIST COLUMNS ({','.join(self.col_name_list)}) " \
-                f"{self.sub_partition.do_compile()} ({self._parse_list_part_list()})"
+               f"{self.sub_partition.do_compile()} ({self._parse_list_part_list()})"
 
     def _parse_list_part_list(self) -> str:
         list_partitions_complied = [
@@ -221,12 +226,13 @@ class GsListPartition(GsPartition):
 
 class GsSubListPartition(GsListPartition):
     """List/ListColumns subpartition strategy."""
+
     def __init__(
-        self,
-        is_list_columns: bool,
-        list_part_infos: List[RangeListPartInfo],
-        list_expr: Optional[str] = None,
-        col_name_list: Optional[List[str]] = None,
+            self,
+            is_list_columns: bool,
+            list_part_infos: List[RangeListPartInfo],
+            list_expr: Optional[str] = None,
+            col_name_list: Optional[List[str]] = None,
     ):
         super().__init__(is_list_columns, list_part_infos, list_expr, col_name_list)
         self.is_sub = True
@@ -243,7 +249,7 @@ class GsSubListPartition(GsListPartition):
         assert self.col_name_list is not None
         assert self.sub_partition is None
         return f"LIST COLUMNS ({','.join(self.col_name_list)}) SUBPARTITION TEMPLATE " \
-                f"({self._parse_list_part_list()})"
+               f"({self._parse_list_part_list()})"
 
     def _parse_list_part_list(self) -> str:
         list_partitions_complied = [
@@ -256,11 +262,12 @@ class GsSubListPartition(GsListPartition):
 
 class GsHashPartition(GsPartition):
     """Hash partition strategy."""
+
     def __init__(
-        self,
-        hash_expr: str,
-        hash_part_name_list: List[str] = None,
-        part_count: Optional[int] = None,
+            self,
+            hash_expr: str,
+            hash_part_name_list: List[str] = None,
+            part_count: Optional[int] = None,
     ):
         super().__init__(PartType.Hash)
         self.hash_expr = hash_expr
@@ -288,12 +295,12 @@ class GsHashPartition(GsPartition):
             if self.sub_partition is None:
                 return f"HASH ({self.hash_expr}) PARTITIONS {self.part_count}"
             return f"HASH ({self.hash_expr}) {self.sub_partition.do_compile()} " \
-                    f"PARTITIONS {self.part_count}"
+                   f"PARTITIONS {self.part_count}"
         assert self.hash_part_name_list is not None
         if self.sub_partition is None:
             return f"HASH ({self.hash_expr}) ({self._parse_hash_part_list()})"
         return f"HASH ({self.hash_expr}) {self.sub_partition.do_compile()} " \
-                f"({self._parse_hash_part_list()})"
+               f"({self._parse_hash_part_list()})"
 
     def _parse_hash_part_list(self):
         return ",".join([f"PARTITION {name}" for name in self.hash_part_name_list])
@@ -301,11 +308,12 @@ class GsHashPartition(GsPartition):
 
 class GsSubHashPartition(GsHashPartition):
     """Hash subpartition strategy."""
+
     def __init__(
-        self,
-        hash_expr: str,
-        hash_part_name_list: List[str] = None,
-        part_count: Optional[int] = None,
+            self,
+            hash_expr: str,
+            hash_part_name_list: List[str] = None,
+            part_count: Optional[int] = None,
     ):
         super().__init__(hash_expr, hash_part_name_list, part_count)
         self.is_sub = True
@@ -328,11 +336,12 @@ class GsSubHashPartition(GsHashPartition):
 
 class GsKeyPartition(GsPartition):
     """Key partition strategy."""
+
     def __init__(
-        self,
-        col_name_list: List[str],
-        key_part_name_list: List[str] = None,
-        part_count: Optional[int] = None,
+            self,
+            col_name_list: List[str],
+            key_part_name_list: List[str] = None,
+            part_count: Optional[int] = None,
     ):
         super().__init__(PartType.Key)
         self.col_name_list = col_name_list
@@ -362,12 +371,12 @@ class GsKeyPartition(GsPartition):
                     f"KEY ({','.join(self.col_name_list)}) PARTITIONS {self.part_count}"
                 )
             return f"KEY ({','.join(self.col_name_list)}) {self.sub_partition.do_compile()} " \
-                    f"PARTITIONS {self.part_count}"
+                   f"PARTITIONS {self.part_count}"
         assert self.key_part_name_list is not None
         if self.sub_partition is None:
             return f"KEY ({','.join(self.col_name_list)}) ({self._parse_key_part_list()})"
         return f"KEY ({','.join(self.col_name_list)}) {self.sub_partition.do_compile()} " \
-                f"({self._parse_key_part_list()})"
+               f"({self._parse_key_part_list()})"
 
     def _parse_key_part_list(self):
         return ",".join([f"PARTITION {name}" for name in self.key_part_name_list])
@@ -375,11 +384,12 @@ class GsKeyPartition(GsPartition):
 
 class GsSubKeyPartition(GsKeyPartition):
     """Key subpartition strategy."""
+
     def __init__(
-        self,
-        col_name_list: List[str],
-        key_part_name_list: List[str] = None,
-        part_count: Optional[int] = None,
+            self,
+            col_name_list: List[str],
+            key_part_name_list: List[str] = None,
+            part_count: Optional[int] = None,
     ):
         super().__init__(col_name_list, key_part_name_list, part_count)
         self.is_sub = True
@@ -397,7 +407,7 @@ class GsSubKeyPartition(GsKeyPartition):
         assert self.key_part_name_list is not None
         assert self.sub_partition is None
         return f"KEY ({','.join(self.col_name_list)}) SUBPARTITION TEMPLATE " \
-                f"({self._parse_key_part_list()})"
+               f"({self._parse_key_part_list()})"
 
     def _parse_key_part_list(self):
         return ",".join([f"SUBPARTITION {name}" for name in self.key_part_name_list])

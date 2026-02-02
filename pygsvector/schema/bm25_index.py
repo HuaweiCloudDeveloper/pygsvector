@@ -1,27 +1,29 @@
 """FullTextIndex: full text search index type"""
 from sqlalchemy import Index
-from sqlalchemy.schema import DDLElement
 from sqlalchemy.ext.compiler import compiles
+from sqlalchemy.schema import DDLElement
 from sqlalchemy.sql.ddl import SchemaGenerator
 
 
 class CreateBM25Index(DDLElement):
-    """A new statement clause to create fts index.
+    """A new statement clause to create bm25 index.
     
     Attributes:
-    index : fts index schema
+    index : bm25 index schema
     """
+
     def __init__(self, index):
         self.index = index
 
 
 class GsBM25SchemaGenerator(SchemaGenerator):
-    """A new schema generator to handle create fts index statement."""
+    """A new schema generator to handle create bm25 index statement."""
+
     def visit_fts_index(self, index, create_ok=False):
-        """Handle create fts index statement compiling.
+        """Handle create bm25 index statement compiling.
 
         Args:
-            index: fts index schema
+            index: bm25 index schema
             create_ok: the schema is created or not
         """
         if not create_ok and not self._can_create_index(index):
@@ -29,16 +31,22 @@ class GsBM25SchemaGenerator(SchemaGenerator):
         with self.with_ddl_events(index):
             CreateBM25Index(index)._invoke_with(self.connection)
 
+
 class BM25Index(Index):
     """BM25 Index schema."""
     __visit_name__ = "fts_index"
 
-    def __init__(self, name, fts_parser: str, *column_names, **kw):
-        self.fts_parser = fts_parser
+    def __init__(self, name, *column_names, local_index: bool, params: str = None, **kw):
+        self.params = params
+        self.local_index = local_index
+        if len(column_names) > 1:
+            raise ValueError(
+                f"expected single column for bm25 index: {len(column_names)}"
+            )
         super().__init__(name, *column_names, **kw)
 
     def create(self, bind, checkfirst: bool = False) -> None:
-        """Create fts index.
+        """Create bm25 index.
         
         Args:
             bind: SQL engine or connection.
@@ -48,10 +56,11 @@ class BM25Index(Index):
 
 
 @compiles(CreateBM25Index)
-def compile_create_bm25_index(element, compiler, **kw): # pylint: disable=unused-argument
-    """A decorator function to compile create fts index statement."""
+def compile_create_bm25_index(element, compiler, **kw):  # pylint: disable=unused-argument
+    """A decorator function to compile create bm25 index statement."""
     index = element.index
     table_name = index.table.name
     column_list = ", ".join([column.name for column in index.columns])
-    fts_parser = index.fts_parser
-    return f"CREATE INDEX {index.name} ON {table_name} USING BM25({column_list}) WITH (num_parallels = {fts_parser})"
+    local_clause = " LOCAL" if index.local_index else ""
+
+    return f"CREATE INDEX {index.name} ON {table_name} USING BM25({column_list}) {local_clause} WITH ({index.params})"

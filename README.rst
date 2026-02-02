@@ -1,5 +1,5 @@
 
-快速开始
+pygsvector
 ==========
 
 A python SDK for GaussDB Multimodal Store (Vector Store / Full Text Search), based on SQLAlchemy, compatible with Milvus API.
@@ -16,11 +16,19 @@ Installation
 
 
 * install with pip (already been released):
+  .. code-block:: shell
+
+     pip install pygsvector-0.1.0-py3-none-any.whl
+
+Build Doc
+---------
+
+You can build document locally with ``sphinx``\ :
 
 .. code-block:: shell
 
-   pip install pygsvector-0.1.0-py3-none-any.whl
-
+   mkdir build
+   make html
 
 Usage
 -----
@@ -29,11 +37,12 @@ Usage
 
 
 * ``Milvus compatible mode``\ : You can use the ``MilvusCompatClient`` class to use vector storage in a way similar to the Milvus API
-* ``GaussDB Vector mode``\ : You can use the vector storage function provided by the ``GsVecClient`` class and execute the relational database statement with the SQLAlchemy library. In this mode, you can regard ``pygsvector`` as an extension of SQLAlchemy.
+* ``SQLAlchemy hybrid mode``\ : You can use the vector storage function provided by the ``GsVecClient`` class and execute the relational database statement with the SQLAlchemy library. In this mode, you can regard ``pygsvector`` as an extension of SQLAlchemy.
 
 Milvus compatible mode
 ^^^^^^^^^^^^^^^^^^^^^^
 
+Refer to ``tests/test_milvus_like_client.py`` for more examples.
 
 A simple workflow to perform ANN search with GaussDB Vector Store:
 
@@ -44,7 +53,7 @@ A simple workflow to perform ANN search with GaussDB Vector Store:
 
    from pygsvector import *
 
-   client = MilvusCompatClient(uri="127.0.0.1:4321", user="test", password="", db_name="")
+   client = MilvusCompatClient(uri="127.0.0.1:2881", user="test@test")
 
 
 * create a collection with vector index:
@@ -102,8 +111,10 @@ A simple workflow to perform ANN search with GaussDB Vector Store:
    # For example, the result will be:
    # [{'id': 112}, {'id': 111}, {'id': 10}, {'id': 11}, {'id': 12}]
 
-GaussDB Vector mode
+SQLAlchemy hybrid mode
 ^^^^^^^^^^^^^^^^^^^^^^
+
+Refer to ``tests/test_milvus_like_client.py`` for more examples.
 
 
 * setup a client:
@@ -114,7 +125,7 @@ GaussDB Vector mode
    from sqlalchemy import Column, Integer, JSON
    from sqlalchemy import func
 
-   client = GsVecClient(uri="127.0.0.1:4321", user="test", password="", db_name="")
+   client = GsVecClient(uri="127.0.0.1:2881", user="test@test")
 
 
 * create a partitioned table with vector index:
@@ -217,16 +228,16 @@ ann_search Parameters
 The ``ann_search`` method supports flexible output column selection through the ``output_columns`` parameter:
 
 
-* \ ``output_columns``\  (recommended): Accepts SQLAlchemy Column objects, expressions, or a mix of both
+* **\ ``output_columns``\ ** (recommended): Accepts SQLAlchemy Column objects, expressions, or a mix of both
 * Column objects: ``table.c.id``\ , ``table.c.name``
 
   * Expressions: ``(table.c.age + 10).label('age_plus_10')``
   * String functions: ``func.concat(table.c.name, ' (', table.c.age, ')').label('name_age')``
 
-* \ ``output_column_names``\  (legacy): Accepts list of column name strings
+* **\ ``output_column_names``\ ** (legacy): Accepts list of column name strings
 * Example: ``['id', 'name', 'meta']``
 * **Parameter Priority**\ : ``output_columns`` takes precedence over ``output_column_names`` when both are provided
-* \ ``distance_threshold``\  (optional): Filter results by distance threshold
+* **\ ``distance_threshold``\ ** (optional): Filter results by distance threshold
 * Type: ``Optional[float]``
 
   * Only returns results where ``distance <= threshold``

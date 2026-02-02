@@ -1,5 +1,6 @@
 import json
 import unittest
+from sqlalchemy.sql.selectable import and_
 from pygsvector import *
 from sqlalchemy import Column, Integer, JSON, String, text, Text, Table, BLOB
 from sqlalchemy import func
@@ -49,8 +50,7 @@ class GsVecClientTest(unittest.TestCase):
             column_names=["embedding"],
             index_type="GSDISKANN",
             metric_type="l2",
-            local_index=True,
-            vidx_params="enable_pq=false",
+            idx_params="enable_pq=false",
         )
 
         # insert data
@@ -198,8 +198,7 @@ class GsVecClientTest(unittest.TestCase):
             column_names=["embedding"],
             index_type="GSDISKANN",
             metric_type="l2",
-            local_index=False,
-            vidx_params="enable_pq=false",
+            idx_params="enable_pq=false",
         )
 
         data = [
@@ -243,8 +242,7 @@ class GsVecClientTest(unittest.TestCase):
             column_names=["embedding"],
             index_type="GSDISKANN",
             metric_type="l2",
-            local_index=False,
-            vidx_params="enable_pq=false",
+            idx_params="enable_pq=false",
         )
 
         self.client.create_index(
@@ -254,8 +252,7 @@ class GsVecClientTest(unittest.TestCase):
             column_names=["embedding"],
             index_type="GSDISKANN",
             metric_type="l2",
-            local_index=False,
-            vidx_params="enable_pq=false",
+            idx_params="enable_pq=false",
         )
 
     def test_array_column(self):
@@ -383,6 +380,39 @@ class GsVecClientTest(unittest.TestCase):
         ).fetchall()
         self.assertEqual(len(res), 1)
         self.assertEqual(len(res[0]), 2)
+
+    def test_update(self):
+        test_collection_name = "gs_update_test"
+        self.client.drop_table_if_exist(test_collection_name)
+
+        self.client.create_table(
+            table_name=test_collection_name,
+            columns=[
+                Column("id", Integer, primary_key=True, autoincrement=True),
+                Column("embedding", FLOATVECTOR(3)),
+                Column("meta", JSON),
+            ]
+        )
+
+        data = [
+            {"id": 112, "embedding": [1, 2, 3], "meta": {'doc': 'hhh1'}},
+            {"id": 190, "embedding": [0.13, 0.123, 1.213], "meta": {'doc': 'hhh2'}},
+        ]
+        self.client.insert(table_name=test_collection_name, data=data)
+
+        where_clause = [and_(text('id=:id').bindparams(id='112'), text('embedding=:embedding').bindparams(embedding='[1, 2, 3]'))]
+        self.client.update(
+            table_name=test_collection_name,
+            values_clause=[{'meta': {'doc': 'HHH'}}],
+            where_clause=where_clause
+        )
+
+        res = self.client.get(
+            table_name=test_collection_name,
+            ids=[112],
+        ).fetchall()
+        self.assertEqual(len(res), 1)
+        self.assertEqual(res[0].meta['doc'], 'HHH')
 
 
 if __name__ == "__main__":

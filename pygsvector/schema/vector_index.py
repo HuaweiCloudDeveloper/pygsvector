@@ -1,9 +1,8 @@
 """VectorIndex: An extended index type for SQLAlchemy"""
 from sqlalchemy import Index
-from sqlalchemy.schema import DDLElement
 from sqlalchemy.ext.compiler import compiles
+from sqlalchemy.schema import DDLElement
 from sqlalchemy.sql.ddl import SchemaGenerator
-from sqlalchemy import text
 
 
 class CreateVectorIndex(DDLElement):
@@ -12,12 +11,14 @@ class CreateVectorIndex(DDLElement):
     Attributes:
         index : vector index schema
     """
+
     def __init__(self, index):
         self.index = index
 
 
-class GsSchemaGenerator(SchemaGenerator):
+class GsVecSchemaGenerator(SchemaGenerator):
     """A new schema generator to handle create vector index statement."""
+
     def visit_vector_index(self, index, create_ok=False):
         """Handle create vector index statement compiling.
 
@@ -35,7 +36,8 @@ class VectorIndex(Index):
     """Vector Index schema."""
     __visit_name__ = "vector_index"
 
-    def __init__(self, name, *column_names, index_type: str, metric_type: str, local_index: bool, params: str = None, **kw):
+    def __init__(self, name, *column_names, index_type: str, metric_type: str, local_index: bool, params: str = None,
+                 **kw):
         if len(column_names) > 1:
             raise ValueError(
                 f"expected single column for vector index: {len(column_names)}"
@@ -53,7 +55,7 @@ class VectorIndex(Index):
             bind: SQL engine or connection.
             checkfirst: check the index exists or not.
         """
-        bind._run_ddl_visitor(GsSchemaGenerator, self, checkfirst=checkfirst)
+        bind._run_ddl_visitor(GsVecSchemaGenerator, self, checkfirst=checkfirst)
 
 
 @compiles(CreateVectorIndex)
